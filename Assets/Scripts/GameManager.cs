@@ -4,7 +4,9 @@ using System.Collections;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    
     public List<GameObject> Objects = new List<GameObject>();
+    public GameObject PlayerCam;
     private void Awake()
     {
         if (Instance == null)

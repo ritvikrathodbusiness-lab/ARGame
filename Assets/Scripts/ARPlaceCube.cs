@@ -1,59 +1,83 @@
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
-using System.Collections.Generic; 
-using System.Collections; 
-
+using System.Collections.Generic;
 
 public class ARPlaceCube : MonoBehaviour
 {
     [SerializeField] private ARRaycastManager raycastManager;
-    bool isPlacing = false;
+    [SerializeField] private GameObject cubePrefab;
 
-    // Update is called once per frame
+    private GameObject currentObject;
+    private static readonly List<ARRaycastHit> rayHits = new List<ARRaycastHit>();
+
     void Update()
     {
-        if(!raycastManager)
+        if (!raycastManager)
         {
             Debug.LogError("ARRaycastManager is not assigned.");
             return;
         }
-         if(Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began || Input.GetMouseButtonDown(0) && !isPlacing)
-         {
-            isPlacing = true;
 
-            if(Input.touchCount > 0)
-            {
-                PlaceObject(Input.GetTouch(0).position);
-            }
-            else
-            {
-                PlaceObject(Input.mousePosition);
-            }
-
-         }
-    }
-
-    void PlaceObject(Vector2 touchPosition)
-    {
-        var rayHits = new List<ARRaycastHit>();
-        raycastManager.Raycast(touchPosition, rayHits, TrackableType.AllTypes);
-
-        if(rayHits.Count > 0)
+        // --- Touch input ---
+        if (Input.touchCount > 0)
         {
-            Vector3 hitPosition = rayHits[0].pose.position;
-            Quaternion hitRotation = rayHits[0].pose.rotation;
-            GameManager.Instance.Objects.Add(Instantiate(raycastManager.raycastPrefab, hitPosition, hitRotation));
+            Touch touch = Input.GetTouch(0);
 
+            switch (touch.phase)
+            {
+                case TouchPhase.Began:
+                    TryPlaceObject(touch.position);
+                    break;
+
+                case TouchPhase.Moved:
+                case TouchPhase.Stationary:
+                    TryMoveObject(touch.position);
+                    break;
+
+                case TouchPhase.Ended:
+                case TouchPhase.Canceled:
+                    currentObject = null; // release, so next touch places a new cube
+                    break;
+            }
         }
-
-        StartCoroutine(SetIsPlacingFalse());
-
+        // --- Mouse input (editor testing) ---
+        else
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                TryPlaceObject(Input.mousePosition);
+            }
+            else if (Input.GetMouseButton(0))
+            {
+                TryMoveObject(Input.mousePosition);
+            }
+            else if (Input.GetMouseButtonUp(0))
+            {
+                currentObject = null;
+            }
+        }
     }
 
-    IEnumerator SetIsPlacingFalse()
+    void TryPlaceObject(Vector2 screenPosition)
     {
-        yield return new WaitForSeconds(0.25f);
-        isPlacing = false;
+        if (raycastManager.Raycast(screenPosition, rayHits, TrackableType.PlaneWithinPolygon) && GameManager.Instance.Objects.Count < 1)
+        {
+            Pose hitPose = rayHits[0].pose;
+            currentObject = Instantiate(cubePrefab, hitPose.position, hitPose.rotation);
+            GameManager.Instance.Objects.Add(currentObject);
+        }
+    }
+
+    void TryMoveObject(Vector2 screenPosition)
+    {
+        if (currentObject == null) return;
+
+        if (raycastManager.Raycast(screenPosition, rayHits, TrackableType.PlaneWithinPolygon))
+        {
+            Pose hitPose = rayHits[0].pose;
+            currentObject.transform.position = hitPose.position;
+            currentObject.transform.rotation = hitPose.rotation;
+        }
     }
 }
