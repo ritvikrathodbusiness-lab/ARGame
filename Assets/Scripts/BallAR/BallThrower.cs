@@ -65,7 +65,11 @@ public class BallThrower : MonoBehaviour
         swipeStartTime = Time.time;
 
         Vector3 spawnPos = playerCam.TransformPoint(spawnOffset);
-        currentBall = Instantiate(ballPrefab, spawnPos, Quaternion.identity);
+
+        if(GameManager.Instance.Objects.Count > 0)
+        {
+            currentBall = Instantiate(ballPrefab, spawnPos, Quaternion.identity);
+        }
 
         currentBallRb = currentBall.GetComponent<Rigidbody>();
         if (currentBallRb != null)
